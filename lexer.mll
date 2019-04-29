@@ -38,6 +38,9 @@ rule scan = parse
   | "pop"        { Parser.POP                        }
   | "map"        { Parser.MAP                        }
   | "add"        { Parser.ADD                        }
+  | "tree"	 	   { Parser.TREE						           }
+  | "insert"	   { Parser.INSTREE				 	           }	
+  | "delete"	   { Parser.DELTREE				 	           }
   | id as s      { Parser.ID(s)                      }
   | ','          { Parser.COMMA                      }
   | eof          { Parser.EOF                        }

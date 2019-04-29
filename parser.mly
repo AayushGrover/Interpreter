@@ -3,9 +3,9 @@
 
 %token          NEWLINE WS COMMA EOF LPAREN RPAREN LSQUARE RSQUARE COLON SEMICOLON EOL
 %token          IF THEN ELSE LET IN FUN RTARROW END
-%token          DOT PUSH TOP POP
+%token          STACK DOT PUSH TOP POP
 %token          MAP ADD
-%token          STACK
+%token          TREE INSTREE DELTREE
 %token          ADD SUBTRACT EQ
 %token          AND OR NOT
 %token <int>    INTEGER
@@ -43,6 +43,9 @@ expr :
   | LET ID EQ MAP                              { Expression.CreateMap($2)           }
   | ID DOT ADD LPAREN INTEGER COMMA ID RPAREN  { Expression.AddMapping($1, $5, $7)  }
   | ID LSQUARE INTEGER RSQUARE                 { Expression.GetMapValue($1, $3)     }
+  | LET ID EQ TREE	            		           { Expression.CreateTree($2)		      }
+  | ID DOT INSTREE LPAREN INTEGER RPAREN       { Expression.AddElementTree($1, $5)  }
+  | ID DOT DELTREE LPAREN INTEGER RPAREN       { Expression.DeleteElementTree($1, $5)}  
   | END                                        { Expression.EndProgram              }
 ;
 

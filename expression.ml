@@ -7,9 +7,14 @@ type myStack =
 
 type myMap = 
   | Map of (int, string) Hashtbl.t
+
+type myTree = 
+  | EmptyTree
+  | NonEmptyTree of int * myTree * myTree * int 
   
 (* Expression - begin *)
 type expr =
+  | TreeConst of myTree
   | MapConst of myMap
   | StackConst of myStack
   | Id        of string
@@ -33,6 +38,9 @@ type expr =
   | CreateMap of string
   | AddMapping of string * int * string
   | GetMapValue of string * int
+  | CreateTree of string(*The name of tree*)
+  | AddElementTree of string * int (*Tree identifier and the value to add*)
+  | DeleteElementTree of string * int(*Tree identifier and the value to delete*)
   | EndProgram
   (* Expression - end *)
   (* Environment - begin *)
@@ -57,7 +65,25 @@ let string_of_map m =
     (match m with
       Map(tbl) -> Hashtbl.fold f tbl "\n")
 
+      let rec string_of_tree t =
+        match t with
+        | EmptyTree -> " (NULL) "
+        | NonEmptyTree(e, lt, rt, h) -> 
+          (
+            let s = string_of_int e ^ ": "
+             in
+            (
+              match lt, rt with
+              | EmptyTree, EmptyTree -> s ^ " (NULL) " ^ ", (NULL) \n"
+              | NonEmptyTree(e', _, _, _), EmptyTree -> s ^ string_of_int e' ^ ", (NULL) \n" ^ (string_of_tree lt) 
+              | EmptyTree, NonEmptyTree(e', _, _, _) -> s ^ " (NULL), " ^ string_of_int e' ^ "\n" ^ (string_of_tree rt)
+              | NonEmptyTree(e', _, _, _), NonEmptyTree(e'', _, _, _) -> s ^ string_of_int e' ^ ", " ^string_of_int e'' ^ "\n" 
+                                            ^ (string_of_tree lt) ^ (string_of_tree rt)
+            )
+          )       
+
 let rec string_of_expr = function
+  | TreeConst(t)		  -> string_of_tree t
   | MapConst(m)           -> string_of_map m
   | StackConst(l)         -> string_of_stack l
   | Id(vname)             -> vname
@@ -82,6 +108,9 @@ let rec string_of_expr = function
   | AddMapping(id, key, value) -> "Map add (" ^ string_of_int key ^ " - " ^ value ^ ")"
   | GetMapValue(id, key)   -> "Map get Value (" ^ string_of_int key ^ ")"
   | EndProgram          -> "(End of program)"
+  | CreateTree(id)      -> "Tree (" ^ id ^ ")"
+  | AddElementTree(id,v)    -> "Tree add (" ^ id ^ ") (" ^  (string_of_int v) ^ ")"
+  | DeleteElementTree(id,v)   -> "Tree remove (" ^ id ^ ") (" ^ (string_of_int v) ^ ")"
 and string_of_env env =
   let rec iter = function
       EmptyEnv -> ""
@@ -181,3 +210,112 @@ let rec getValueFromKey key id env =
       | _ -> raise (TypeError "Expected value of type Map")
     )
     else getValueFromKey key id env'
+
+let height t = 
+  match t with
+  | EmptyTree -> 0
+  | NonEmptyTree(x, lt, rt, ht) -> ht  
+
+let newNode x lt rt = NonEmptyTree(x, lt, rt, 1 + (max (height lt) (height rt)))
+
+let rotRight t = 
+  match t with
+  | EmptyTree -> raise (TypeError "No tree to rotate")
+  | NonEmptyTree(y, NonEmptyTree(x, t1, t2, h1), t3, h2) -> (newNode x t1 (newNode y t2 t3))
+  | NonEmptyTree(y, EmptyTree, t3, h2) -> raise (TypeError "No rotation needed") 
+
+let rotLeft t = 
+  match t with
+  | EmptyTree -> raise (TypeError "No tree to rotate")
+  | NonEmptyTree(y, t1, NonEmptyTree(x, t2, t3, h1), h2) -> (newNode x (newNode y t1 t2) t3)
+  | NonEmptyTree(y, t1, EmptyTree, h2) -> raise (TypeError "No rotation needed")
+
+let rec addNode x t = 
+  match t with
+  | EmptyTree -> NonEmptyTree(x, EmptyTree, EmptyTree, 1)
+  | NonEmptyTree(v, lt, rt, h) -> 
+    if x > v then 
+    (
+      let rt = (addNode x rt)
+      in
+      match rt with 
+      | EmptyTree -> raise (TypeError "Not Possible")
+      | NonEmptyTree(v', lt', rt', h') -> 
+        if (abs(h' - (height lt)) <= 1) then (newNode v lt rt)
+        else 
+        (
+          let rt = if ((height lt') > (height rt')) then (rotRight rt) else rt
+          in 
+          rotLeft (newNode v lt rt) 
+        ) 
+    )
+    else 
+    (
+      if x < v then 
+        (
+          let lt = (addNode x lt)
+          in
+          match lt with
+          | EmptyTree -> raise (TypeError "Not Possible")
+          | NonEmptyTree(v', lt', rt', h') ->
+            if(abs(h' - (height rt)) <= 1) then (newNode v lt rt)
+            else
+            (
+              let lt = if ((height rt') > (height lt')) then (rotLeft lt) else lt
+              in 
+              rotRight (newNode v lt rt)
+            ) 
+        )
+      else NonEmptyTree(v, lt, rt, h)
+    ) 
+
+let rec addElementToTree id v env =
+  match env with 
+  | EmptyEnv -> raise Not_found
+  | NonEmptyEnv((vname,value), env') ->
+    (
+      match value with
+      | TreeConst(mt) ->
+        if vname = id then NonEmptyEnv((vname, TreeConst(addNode v mt)), env')
+        else NonEmptyEnv((vname, value), (addElementToTree id v env')) 
+      | _ -> raise (TypeError "Expected value of type myTree")
+    )
+
+let rec treeToList t = 
+  match t with 
+  | EmptyTree -> []
+  | NonEmptyTree(v, lt, rt, h) -> (v :: (treeToList lt)) @ (treeToList rt)
+
+let rec rmNodeFromList x l = 
+  match l with 
+  | [] -> []
+  | h::t -> if (h <> x) then h::(rmNodeFromList x t) else (rmNodeFromList x t)
+
+let rec listToTree l = 
+  match l with 
+  | [] -> EmptyTree
+  | h::t -> (addNode h (listToTree t))
+
+let rmNode x tr = 
+  match tr with
+  | EmptyTree -> raise (TypeError "Node not found")
+  | NonEmptyTree(v, lt, rt, h) -> 
+  (
+    let l = treeToList tr in
+    let l' = rmNodeFromList x l in
+    if ((List.length l) = (List.length l')) then raise Not_found 
+    else (listToTree l')
+  )
+
+
+let rec removeElementFromTree id v env = 
+  match env with 
+  | EmptyEnv -> raise Not_found
+  | NonEmptyEnv((vname,value), env') ->
+    (
+      match value with
+      | TreeConst(mt) ->
+        if vname = id then NonEmptyEnv((vname, TreeConst(rmNode v mt)), env')
+        else NonEmptyEnv((vname, value), (removeElementFromTree id v env')) 
+      | _ -> raise (TypeError "Expected value of type myTree")
+    )	

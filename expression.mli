@@ -5,7 +5,12 @@ type myStack =
 type myMap = 
   | Map of (int, string) Hashtbl.t
 
+type myTree = 
+  | EmptyTree
+  | NonEmptyTree of int * myTree * myTree * int
+
 type expr =
+  | TreeConst of myTree
   | MapConst of myMap
   | StackConst of myStack
   | Id        of string
@@ -32,6 +37,9 @@ type expr =
   | CreateMap of string
   | AddMapping of string * int * string
   | GetMapValue of string * int
+  | CreateTree of string(*The name of tree*)
+  | AddElementTree of string * int(*Tree identifier and the value to add*)
+  | DeleteElementTree of string * int(*Tree identifier and the value to delete*)
   | EndProgram
   and env =
   EmptyEnv
@@ -46,6 +54,10 @@ val string_of_expr : expr -> string
   
 val string_of_stack : myStack -> string
 
+val string_of_tree : myTree -> string
+
+val string_of_map : myMap -> string
+
 val emptyEnv : unit -> env
 
 val addBinding : string -> expr -> env -> env
@@ -58,8 +70,10 @@ val topOfStack : string -> env -> expr
 
 val popFromStack : string -> env -> env
 
-val string_of_map : myMap -> string
-
 val addMapping : int -> string -> string -> env -> env
 
 val getValueFromKey : int -> string -> env -> expr
+
+val addElementToTree : string -> int -> env -> env
+
+val removeElementFromTree : string -> int -> env -> env

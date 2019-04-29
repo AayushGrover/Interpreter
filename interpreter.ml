@@ -20,6 +20,7 @@ let getClosureValue e =
 (* Interpreter *)
 let rec eval e env : Expression.exprResult =
   match e with
+  | Expression.TreeConst(t)       -> {Expression.res_expr = e ; Expression.res_env = env}
   | Expression.MapConst(m)        -> {Expression.res_expr = e ; Expression.res_env = env}
   | Expression.StackConst(ml)     -> {Expression.res_expr = e ; Expression.res_env = env}
   | Expression.Id(vname)          -> {Expression.res_expr = (Expression.apply vname env) ; Expression.res_env = env} 
@@ -105,5 +106,11 @@ let rec eval e env : Expression.exprResult =
       {Expression.res_expr = e; Expression.res_env = (Expression.addMapping key value id env)}
   | Expression.GetMapValue(id, key) ->
       {Expression.res_expr = (Expression.getValueFromKey key id env) ; Expression.res_env = env}
+  | Expression.CreateTree(id) ->
+      {Expression.res_expr = e ; Expression.res_env = (Expression.addBinding id (Expression.TreeConst Expression.EmptyTree) env)}
+| Expression.AddElementTree(id,v) -> 
+      {Expression.res_expr = e ; Expression.res_env = (Expression.addElementToTree id v env)}
+| Expression.DeleteElementTree(id,v) ->
+      {Expression.res_expr = e ; Expression.res_env = (Expression.removeElementFromTree id v env)}
   | Expression.EndProgram -> 
       {Expression.res_expr = e ; Expression.res_env = env}
